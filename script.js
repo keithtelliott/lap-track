@@ -40,6 +40,7 @@ const meetHeatInput = document.getElementById("meetHeatInput");
 const assignRunnerButton = document.getElementById("assignRunnerButton");
 const meetAssignments = document.getElementById("meetAssignments");
 const runnerButtonsContainer = document.getElementById("runnerButtons");
+const timerChart = document.getElementById("timerChart");
 const resultsBody = document.getElementById("resultsBody");
 const summaryStats = document.getElementById("summaryStats");
 const summaryChart = document.getElementById("summaryChart");
@@ -225,6 +226,8 @@ function renderRunnerButtons() {
   runners.forEach((runner) => {
     runnerButtonsContainer.appendChild(createRunnerCard(runner));
   });
+
+  renderTimerChart();
 }
 
 function renderTimerOptions() {
@@ -344,6 +347,56 @@ function renderResults() {
   });
 
   renderSummary();
+  renderTimerChart();
+}
+
+function renderTimerChart() {
+  if (!timerChart) return;
+
+  const chartRunners = runners.filter(
+    (r) => r.raceId === activeRaceId && r.heatNumber === activeHeatNumber && r.laps.length > 0
+  );
+
+  if (chartRunners.length === 0) {
+    timerChart.innerHTML = '<p class="summary-empty">No lap data for this heat yet.</p>';
+    return;
+  }
+
+  const allLapTimes = chartRunners.flatMap((runner) => runner.laps.map((lap) => lap.lapTime));
+  const maxLapTime = Math.max(...allLapTimes);
+  const ticks = [maxLapTime, maxLapTime * 0.75, maxLapTime * 0.5, maxLapTime * 0.25, 0];
+
+  timerChart.innerHTML = `
+    <div class="summary-title">Lap Time Chart</div>
+    <div class="chart-wrapper">
+      <div class="chart-y-axis">
+        ${ticks.map((tick) => `<div class="chart-tick">${formatTime(Math.round(tick))}</div>`).join('')}
+      </div>
+      <div class="chart-grid">
+        ${chartRunners
+          .map((runner) => {
+            return `
+              <div class="runner-column">
+                <div class="runner-bars">
+                  ${runner.laps
+                    .map((lap) => {
+                      const height = maxLapTime > 0 ? Math.round((lap.lapTime / maxLapTime) * 100) : 0;
+                      return `
+                        <div class="lap-bar" style="height: ${height}%; width: 20px;">
+                          <span class="lap-number">L${lap.number}</span>
+                        </div>
+                      `;
+                    })
+                    .join('')}
+                </div>
+                <div class="runner-name">${runner.name}</div>
+              </div>
+            `;
+          })
+          .join('')}
+      </div>
+    </div>
+  `;
 }
 
 function setActiveTab(tabName) {

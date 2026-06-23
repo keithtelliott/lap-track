@@ -337,6 +337,30 @@ button {
   display: block;
 }
 
+.timer-grid {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.timer-chart {
+  min-width: 300px;
+  max-width: 360px;
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+.timer-chart .chart-wrapper {
+  grid-template-columns: 48px 1fr;
+  min-height: 160px;
+}
+
+.timer-chart .chart-grid {
+  height: 140px;
+}
+
 .chart-wrapper {
   display: grid;
   grid-template-columns: 64px 1fr;
