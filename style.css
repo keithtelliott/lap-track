@@ -25,11 +25,42 @@ h1, h2 {
   background: #e8edf3;
   color: #2b3645;
   font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 6px 8px;
+  min-height: 74px;
 }
 
 .tab-button.active {
   background: #1f4b99;
   color: white;
+}
+
+.tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+
+.tab-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tab-label {
+  font-size: 12px;
+  line-height: 1.1;
+  text-align: center;
 }
 
 .tab-panel {
@@ -798,6 +829,30 @@ th {
 }
 
 @media (max-width: 640px) {
+  .tab-bar {
+    gap: 6px;
+  }
+
+  .tab-button {
+    padding: 8px 4px 7px;
+    min-height: 66px;
+    border-radius: 8px;
+  }
+
+  .tab-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .tab-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .tab-label {
+    font-size: 10px;
+  }
+
   .controls,
   .runner-management,
   .meet-management,
