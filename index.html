@@ -15,8 +15,8 @@
       <button class="tab-button" type="button" data-tab="races">Races</button>
       <button class="tab-button" type="button" data-tab="meets">Meets</button>
       <button class="tab-button" type="button" data-tab="meet-setup">Meet Setup</button>
-      <button class="tab-button" type="button" data-tab="results">Results</button>
       <button class="tab-button" type="button" data-tab="timer">Timer</button>
+      <button class="tab-button" type="button" data-tab="results">Results</button>
     </nav>
 
     <section id="tab-runners" class="tab-panel active" aria-labelledby="Runners">
@@ -111,37 +111,45 @@
 
     <section id="tab-results" class="tab-panel" aria-labelledby="Results">
       <h2>Results</h2>
+      <p class="section-copy">Review saved lap history by meet, then narrow to race and heat.</p>
+
+      <section class="results-toolbar" aria-label="Results filters">
+        <label class="results-filter">
+          <span>Meet</span>
+          <select id="resultsMeetFilter" aria-label="Filter results by meet"></select>
+        </label>
+
+        <label class="results-filter">
+          <span>Race</span>
+          <select id="resultsRaceFilter" aria-label="Filter results by race"></select>
+        </label>
+
+        <label class="results-filter">
+          <span>Heat</span>
+          <select id="resultsHeatFilter" aria-label="Filter results by heat"></select>
+        </label>
+
+        <div class="results-actions" aria-label="Results actions">
+          <button id="exportResultsButton" type="button">Export Scope CSV</button>
+          <button id="clearResultsScopeButton" type="button">Clear Scope</button>
+        </div>
+      </section>
+
+      <div id="resultsContext" class="results-context"></div>
 
       <div id="summaryContainer" class="summary-container">
+        <div class="summary-card">
+          <div class="summary-title">Scope Statistics</div>
+          <div id="summaryStats"></div>
+        </div>
+
         <div class="summary-card">
           <div class="summary-title">Lap Time Chart</div>
           <div id="summaryChart" class="summary-chart"></div>
         </div>
       </div>
 
-      <h2>Lap Results</h2>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Runner</th>
-            <th>Race</th>
-            <th>Heat</th>
-            <th>Lap</th>
-            <th>Lap Time</th>
-            <th>Total Time</th>
-          </tr>
-        </thead>
-        <tbody id="resultsBody">
-        </tbody>
-      </table>
-
-      <div id="statsContainer" class="summary-container">
-        <div class="summary-card">
-          <div class="summary-title">Race Statistics</div>
-          <div id="summaryStats"></div>
-        </div>
-      </div>
+      <section id="groupedResults" class="results-groups" aria-label="Grouped lap results"></section>
     </section>
 
     <section id="tab-timer" class="tab-panel" aria-labelledby="Timer">

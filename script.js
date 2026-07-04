@@ -10,6 +10,7 @@ const runners = [];
 const runnerStorageKey = "trackLapTimer.runners";
 const raceStorageKey = "trackLapTimer.races";
 const meetStorageKey = "trackLapTimer.meets";
+const resultStorageKey = "trackLapTimer.results";
 const defaultRaces = [
   { id: "1600", name: "1600 Meter" },
   { id: "800", name: "800 Meter" },
@@ -17,6 +18,7 @@ const defaultRaces = [
 ];
 let races = loadRaces();
 let meets = loadMeets();
+let results = loadResults();
 
 if (races.length === 0) {
   races = defaultRaces.slice();
@@ -67,12 +69,23 @@ const assignRunnerButton = document.getElementById("assignRunnerButton");
 const meetAssignments = document.getElementById("meetAssignments");
 const runnerButtonsContainer = document.getElementById("runnerButtons");
 const timerChart = document.getElementById("timerChart");
-const resultsBody = document.getElementById("resultsBody");
 const summaryStats = document.getElementById("summaryStats");
 const summaryChart = document.getElementById("summaryChart");
+const resultsMeetFilter = document.getElementById("resultsMeetFilter");
+const resultsRaceFilter = document.getElementById("resultsRaceFilter");
+const resultsHeatFilter = document.getElementById("resultsHeatFilter");
+const resultsContext = document.getElementById("resultsContext");
+const groupedResults = document.getElementById("groupedResults");
+const exportResultsButton = document.getElementById("exportResultsButton");
+const clearResultsScopeButton = document.getElementById("clearResultsScopeButton");
 const tabButtons = document.querySelectorAll(".tab-button");
 const tabPanels = document.querySelectorAll(".tab-panel");
 let activeTab = "runners";
+const ALL_RACES_OPTION = "__all_races__";
+const ALL_HEATS_OPTION = "__all_heats__";
+let resultsMeetFilterValue = activeMeetId;
+let resultsRaceFilterValue = ALL_RACES_OPTION;
+let resultsHeatFilterValue = ALL_HEATS_OPTION;
 
 function formatTime(milliseconds) {
   const totalSeconds = milliseconds / 1000;
@@ -154,12 +167,144 @@ function loadMeets() {
   }
 }
 
+function loadResults() {
+  const savedResults = localStorage.getItem(resultStorageKey);
+
+  if (!savedResults) {
+    return [];
+  }
+
+  try {
+    const parsedResults = JSON.parse(savedResults);
+
+    if (!Array.isArray(parsedResults)) {
+      return [];
+    }
+
+    return parsedResults
+      .filter(
+        (entry) =>
+          entry &&
+          typeof entry.id === "string" &&
+          typeof entry.meetId === "string" &&
+          typeof entry.raceId === "string" &&
+          Number.isInteger(entry.heatNumber) &&
+          Number.isInteger(entry.runnerId) &&
+          typeof entry.runnerName === "string" &&
+          Number.isInteger(entry.lapNumber) &&
+          Number.isInteger(entry.lapTime) &&
+          Number.isInteger(entry.totalTime) &&
+          typeof entry.recordedAt === "string"
+      )
+      .map((entry) => ({
+        id: entry.id,
+        meetId: entry.meetId,
+        raceId: entry.raceId,
+        heatNumber: entry.heatNumber,
+        runnerId: entry.runnerId,
+        runnerName: entry.runnerName,
+        lapNumber: entry.lapNumber,
+        lapTime: entry.lapTime,
+        totalTime: entry.totalTime,
+        recordedAt: entry.recordedAt,
+        isFinishLap: Boolean(entry.isFinishLap),
+      }));
+  } catch {
+    localStorage.removeItem(resultStorageKey);
+    return [];
+  }
+}
+
 function saveRaces() {
   localStorage.setItem(raceStorageKey, JSON.stringify(races));
 }
 
 function saveMeets() {
   localStorage.setItem(meetStorageKey, JSON.stringify(meets));
+}
+
+function saveResults() {
+  localStorage.setItem(resultStorageKey, JSON.stringify(results));
+}
+
+function getRaceNameById(raceId) {
+  const race = races.find((entry) => entry.id === raceId);
+  return race ? race.name : "Unknown Race";
+}
+
+function getMeetNameById(meetId) {
+  const meet = getMeetById(meetId);
+  return meet ? meet.name : "Unknown Meet";
+}
+
+function appendResultRecord({
+  meetId,
+  raceId,
+  heatNumber,
+  runnerId,
+  runnerName,
+  lapNumber,
+  lapTime,
+  totalTime,
+  isFinishLap = false,
+}) {
+  if (
+    typeof meetId !== "string" ||
+    typeof raceId !== "string" ||
+    !Number.isInteger(heatNumber) ||
+    !Number.isInteger(runnerId) ||
+    typeof runnerName !== "string" ||
+    !Number.isInteger(lapNumber) ||
+    !Number.isInteger(lapTime) ||
+    !Number.isInteger(totalTime)
+  ) {
+    return;
+  }
+
+  const timestamp = new Date().toISOString();
+  results.push({
+    id: `${timestamp}-${runnerId}-${lapNumber}`,
+    meetId,
+    raceId,
+    heatNumber,
+    runnerId,
+    runnerName,
+    lapNumber,
+    lapTime,
+    totalTime,
+    recordedAt: timestamp,
+    isFinishLap,
+  });
+  saveResults();
+}
+
+function getResultsInScope() {
+  const meetId = resultsMeetFilterValue;
+  const raceId = resultsRaceFilterValue;
+  const heatValue = resultsHeatFilterValue;
+
+  return results
+    .filter((entry) => {
+      const matchesMeet = !meetId || entry.meetId === meetId;
+      const matchesRace = raceId === ALL_RACES_OPTION || entry.raceId === raceId;
+      const matchesHeat = heatValue === ALL_HEATS_OPTION || entry.heatNumber === Number.parseInt(heatValue, 10);
+      return matchesMeet && matchesRace && matchesHeat;
+    })
+    .sort((a, b) => {
+      if (a.raceId !== b.raceId) {
+        return getRaceNameById(a.raceId).localeCompare(getRaceNameById(b.raceId));
+      }
+
+      if (a.heatNumber !== b.heatNumber) {
+        return a.heatNumber - b.heatNumber;
+      }
+
+      if (a.runnerName !== b.runnerName) {
+        return a.runnerName.localeCompare(b.runnerName);
+      }
+
+      return a.lapNumber - b.lapNumber;
+    });
 }
 
 function getMeetById(meetId) {
@@ -260,6 +405,9 @@ function setActiveMeet(meetId) {
   }
 
   activeMeetId = nextMeet.id;
+  resultsMeetFilterValue = nextMeet.id;
+  resultsRaceFilterValue = ALL_RACES_OPTION;
+  resultsHeatFilterValue = ALL_HEATS_OPTION;
   renderMeetOptions();
   renderMeetList();
   renderMeetRoster();
@@ -651,33 +799,326 @@ function renderMeetAssignments() {
   }
 }
 
-function renderResults() {
-  resultsBody.innerHTML = "";
+function renderResultsFilters() {
+  const meetOptions = meets.length
+    ? meets.map((meet) => `<option value="${meet.id}">${meet.name}</option>`).join("")
+    : '<option value="">No meets available</option>';
 
-  runners.forEach((runner) => {
-    const assignment = getRunnerAssignment(runner.id);
+  resultsMeetFilter.innerHTML = meetOptions;
 
-    if (!assignment) {
-      return;
-    }
+  if (!meets.some((meet) => meet.id === resultsMeetFilterValue)) {
+    resultsMeetFilterValue = getActiveMeet() ? getActiveMeet().id : (meets[0] ? meets[0].id : "");
+  }
 
-    runner.laps.forEach((lap) => {
-      const row = document.createElement("tr");
-      const race = races.find((entry) => entry.id === assignment.raceId);
-      row.innerHTML = `
-        <td>${runner.name}</td>
-        <td>${race ? race.name : "Unassigned"}</td>
-        <td>${assignment.heatNumber ?? "Unassigned"}</td>
-        <td>${lap.number}</td>
-        <td>${formatTime(lap.lapTime)}</td>
-        <td>${formatTime(lap.totalTime)}</td>
-      `;
-      resultsBody.appendChild(row);
-    });
+  resultsMeetFilter.value = resultsMeetFilterValue;
+  resultsMeetFilter.disabled = meets.length === 0;
+
+  const scopedRaceIds = new Set(
+    results
+      .filter((entry) => !resultsMeetFilterValue || entry.meetId === resultsMeetFilterValue)
+      .map((entry) => entry.raceId)
+  );
+
+  races.forEach((race) => {
+    scopedRaceIds.add(race.id);
   });
 
-  renderSummary();
-  renderTimerChart();
+  const raceOptions = [
+    `<option value="${ALL_RACES_OPTION}">All Races</option>`,
+    ...Array.from(scopedRaceIds)
+      .map((raceId) => `<option value="${raceId}">${getRaceNameById(raceId)}</option>`)
+      .sort((a, b) => a.localeCompare(b)),
+  ];
+
+  resultsRaceFilter.innerHTML = raceOptions.join("");
+  if (!Array.from(scopedRaceIds).includes(resultsRaceFilterValue)) {
+    resultsRaceFilterValue = ALL_RACES_OPTION;
+  }
+  resultsRaceFilter.value = resultsRaceFilterValue;
+
+  const scopedHeats = Array.from(
+    new Set(
+      results
+        .filter((entry) => {
+          const matchesMeet = !resultsMeetFilterValue || entry.meetId === resultsMeetFilterValue;
+          const matchesRace = resultsRaceFilterValue === ALL_RACES_OPTION || entry.raceId === resultsRaceFilterValue;
+          return matchesMeet && matchesRace;
+        })
+        .map((entry) => entry.heatNumber)
+    )
+  ).sort((a, b) => a - b);
+
+  const heatOptions = [
+    `<option value="${ALL_HEATS_OPTION}">All Heats</option>`,
+    ...scopedHeats.map((heat) => `<option value="${heat}">Heat ${heat}</option>`),
+  ];
+
+  resultsHeatFilter.innerHTML = heatOptions.join("");
+  if (resultsHeatFilterValue !== ALL_HEATS_OPTION && !scopedHeats.includes(Number.parseInt(resultsHeatFilterValue, 10))) {
+    resultsHeatFilterValue = ALL_HEATS_OPTION;
+  }
+  resultsHeatFilter.value = resultsHeatFilterValue;
+}
+
+function renderResultsContext(filteredResults) {
+  if (!resultsMeetFilterValue) {
+    resultsContext.innerHTML = '<p class="summary-empty">Add a meet to start capturing results.</p>';
+    return;
+  }
+
+  const meetName = getMeetNameById(resultsMeetFilterValue);
+  const raceLabel =
+    resultsRaceFilterValue === ALL_RACES_OPTION ? "All Races" : getRaceNameById(resultsRaceFilterValue);
+  const heatLabel =
+    resultsHeatFilterValue === ALL_HEATS_OPTION ? "All Heats" : `Heat ${resultsHeatFilterValue}`;
+
+  resultsContext.innerHTML = `
+    <div class="results-chip"><strong>Meet:</strong> ${meetName}</div>
+    <div class="results-chip"><strong>Race:</strong> ${raceLabel}</div>
+    <div class="results-chip"><strong>Heat:</strong> ${heatLabel}</div>
+    <div class="results-chip"><strong>Laps:</strong> ${filteredResults.length}</div>
+  `;
+}
+
+function renderResultsSummary(filteredResults) {
+  if (filteredResults.length === 0) {
+    summaryStats.innerHTML = '<p class="summary-empty">No saved laps in this scope yet.</p>';
+    summaryChart.innerHTML = '<p class="summary-empty">No lap data to chart in this scope.</p>';
+    return;
+  }
+
+  const fastestLap = Math.min(...filteredResults.map((entry) => entry.lapTime));
+  const averageLap = Math.round(
+    filteredResults.reduce((sum, entry) => sum + entry.lapTime, 0) / filteredResults.length
+  );
+  const runnerGroups = new Map();
+
+  filteredResults.forEach((entry) => {
+    if (!runnerGroups.has(entry.runnerId)) {
+      runnerGroups.set(entry.runnerId, {
+        runnerName: entry.runnerName,
+        laps: [],
+      });
+    }
+
+    runnerGroups.get(entry.runnerId).laps.push(entry);
+  });
+
+  const runnersWithLaps = runnerGroups.size;
+  const winnerCandidate = Array.from(runnerGroups.values()).reduce((best, runner) => {
+    const finishTime = Math.max(...runner.laps.map((lap) => lap.totalTime));
+
+    if (!best || finishTime < best.finishTime) {
+      return { runnerName: runner.runnerName, finishTime };
+    }
+
+    return best;
+  }, null);
+
+  summaryStats.innerHTML = `
+    <div class="summary-item"><strong>Runners with Laps:</strong> ${runnersWithLaps}</div>
+    <div class="summary-item"><strong>Total Laps:</strong> ${filteredResults.length}</div>
+    <div class="summary-item"><strong>Fastest Lap:</strong> ${formatTime(fastestLap)}</div>
+    <div class="summary-item"><strong>Average Lap:</strong> ${formatTime(averageLap)}</div>
+    ${winnerCandidate ? `<div class="summary-item"><strong>Fastest Finish:</strong> ${winnerCandidate.runnerName} (${formatTime(winnerCandidate.finishTime)})</div>` : ""}
+  `;
+
+  const maxLapTime = Math.max(...filteredResults.map((entry) => entry.lapTime));
+  const ticks = [maxLapTime, maxLapTime * 0.75, maxLapTime * 0.5, maxLapTime * 0.25, 0];
+  const runnerCharts = Array.from(runnerGroups.values());
+
+  summaryChart.innerHTML = `
+    <div class="chart-wrapper">
+      <div class="chart-y-axis">
+        ${ticks.map((tick) => `<div class="chart-tick">${formatTime(Math.round(tick))}</div>`).join("")}
+      </div>
+      <div class="chart-grid">
+        ${runnerCharts
+          .map((runner) => `
+            <div class="runner-column">
+              <div class="runner-bars">
+                ${runner.laps
+                  .slice()
+                  .sort((a, b) => a.lapNumber - b.lapNumber)
+                  .map((lap) => {
+                    const height = maxLapTime > 0 ? Math.round((lap.lapTime / maxLapTime) * 100) : 0;
+                    return `
+                      <div class="lap-bar" style="height: ${height}%">
+                        <span class="lap-number">L${lap.lapNumber}</span>
+                      </div>
+                    `;
+                  })
+                  .join("")}
+              </div>
+              <div class="runner-name">${runner.runnerName}</div>
+            </div>
+          `)
+          .join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderGroupedResults(filteredResults) {
+  groupedResults.innerHTML = "";
+
+  if (filteredResults.length === 0) {
+    groupedResults.innerHTML = '<p class="empty-state">No saved laps for this meet/race/heat scope yet.</p>';
+    return;
+  }
+
+  const raceGroups = new Map();
+
+  filteredResults.forEach((entry) => {
+    const raceKey = entry.raceId;
+    const heatKey = String(entry.heatNumber);
+
+    if (!raceGroups.has(raceKey)) {
+      raceGroups.set(raceKey, new Map());
+    }
+
+    const heatMap = raceGroups.get(raceKey);
+    if (!heatMap.has(heatKey)) {
+      heatMap.set(heatKey, []);
+    }
+
+    heatMap.get(heatKey).push(entry);
+  });
+
+  Array.from(raceGroups.entries())
+    .sort((a, b) => getRaceNameById(a[0]).localeCompare(getRaceNameById(b[0])))
+    .forEach(([raceId, heatMap]) => {
+      const raceSection = document.createElement("article");
+      raceSection.className = "results-race-group";
+      raceSection.innerHTML = `<h3>${getRaceNameById(raceId)}</h3>`;
+
+      Array.from(heatMap.entries())
+        .sort((a, b) => Number.parseInt(a[0], 10) - Number.parseInt(b[0], 10))
+        .forEach(([heatNumber, entries]) => {
+          const heatSection = document.createElement("section");
+          heatSection.className = "results-heat-group";
+          heatSection.innerHTML = `
+            <h4>Heat ${heatNumber}</h4>
+            <table>
+              <thead>
+                <tr>
+                  <th>Runner</th>
+                  <th>Lap</th>
+                  <th>Lap Time</th>
+                  <th>Total Time</th>
+                  <th>Recorded</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${entries
+                  .slice()
+                  .sort((a, b) => {
+                    if (a.runnerName !== b.runnerName) {
+                      return a.runnerName.localeCompare(b.runnerName);
+                    }
+                    return a.lapNumber - b.lapNumber;
+                  })
+                  .map(
+                    (entry) => `
+                      <tr>
+                        <td>${entry.runnerName}</td>
+                        <td>${entry.lapNumber}${entry.isFinishLap ? " (finish)" : ""}</td>
+                        <td>${formatTime(entry.lapTime)}</td>
+                        <td>${formatTime(entry.totalTime)}</td>
+                        <td>${new Date(entry.recordedAt).toLocaleTimeString()}</td>
+                      </tr>
+                    `
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          `;
+
+          raceSection.appendChild(heatSection);
+        });
+
+      groupedResults.appendChild(raceSection);
+    });
+}
+
+function renderResults() {
+  renderResultsFilters();
+  const filteredResults = getResultsInScope();
+  renderResultsContext(filteredResults);
+  renderResultsSummary(filteredResults);
+  renderGroupedResults(filteredResults);
+}
+
+function getResultsScopeLabel() {
+  const meetLabel = resultsMeetFilterValue ? getMeetNameById(resultsMeetFilterValue) : "all-meets";
+  const raceLabel =
+    resultsRaceFilterValue === ALL_RACES_OPTION ? "all-races" : getRaceNameById(resultsRaceFilterValue);
+  const heatLabel = resultsHeatFilterValue === ALL_HEATS_OPTION ? "all-heats" : `heat-${resultsHeatFilterValue}`;
+
+  return `${meetLabel}-${raceLabel}-${heatLabel}`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
+function escapeCsvValue(value) {
+  const stringValue = String(value ?? "");
+
+  if (stringValue.includes(",") || stringValue.includes("\"") || stringValue.includes("\n")) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+
+  return stringValue;
+}
+
+function exportResultsScope() {
+  const scopedResults = getResultsInScope();
+
+  if (scopedResults.length === 0) {
+    return;
+  }
+
+  const header = ["meet", "race", "heat", "runner", "lap", "lap_time", "total_time", "recorded_at"];
+  const rows = scopedResults.map((entry) => [
+    getMeetNameById(entry.meetId),
+    getRaceNameById(entry.raceId),
+    entry.heatNumber,
+    entry.runnerName,
+    entry.lapNumber,
+    formatTime(entry.lapTime),
+    formatTime(entry.totalTime),
+    entry.recordedAt,
+  ]);
+
+  const csvLines = [header, ...rows].map((line) => line.map(escapeCsvValue).join(","));
+  const csvBlob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const fileName = `results-${getResultsScopeLabel()}.csv`;
+  const url = URL.createObjectURL(csvBlob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function clearResultsScope() {
+  const scopedResults = getResultsInScope();
+
+  if (scopedResults.length === 0) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Delete ${scopedResults.length} saved lap${scopedResults.length === 1 ? "" : "s"} in the current Results scope?`
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const scopedIds = new Set(scopedResults.map((entry) => entry.id));
+  results = results.filter((entry) => !scopedIds.has(entry.id));
+  saveResults();
+  renderResults();
 }
 
 function renderTimerChart() {
@@ -747,74 +1188,6 @@ function setActiveTab(tabName) {
   tabPanels.forEach((panel) => {
     panel.classList.toggle("active", panel.id === `tab-${tabName}`);
   });
-}
-
-function renderSummary() {
-  const chartRunners = runners.filter((runner) => runner.laps.length > 0 && getRunnerAssignment(runner.id) !== null);
-
-  if (chartRunners.length === 0) {
-    summaryStats.innerHTML = '<p class="summary-empty">No lap data yet.</p>';
-    summaryChart.innerHTML = '';
-    return;
-  }
-
-  const allLapTimes = chartRunners.flatMap((runner) => runner.laps.map((lap) => lap.lapTime));
-  const totalLapCount = allLapTimes.length;
-  const fastestLap = Math.min(...allLapTimes);
-  const averageLap = Math.round(allLapTimes.reduce((sum, lapTime) => sum + lapTime, 0) / totalLapCount);
-  const finishedRunners = chartRunners.filter((runner) => runner.finished);
-  const winner = finishedRunners.length
-    ? finishedRunners.reduce((best, runner) => {
-        const runnerTime = runner.finishTime ?? (runner.laps.length ? runner.laps[runner.laps.length - 1].totalTime : Infinity);
-        return runnerTime < (best.finishTime ?? best.laps[best.laps.length - 1].totalTime) ? runner : best;
-      })
-    : null;
-
-  summaryStats.innerHTML = `
-    <div class="summary-item"><strong>Meet:</strong> ${getActiveMeet() ? getActiveMeet().name : "Unassigned"}</div>
-    <div class="summary-item"><strong>Runners with Laps:</strong> ${chartRunners.length}</div>
-    <div class="summary-item"><strong>Total Laps:</strong> ${totalLapCount}</div>
-    <div class="summary-item"><strong>Fastest Lap:</strong> ${formatTime(fastestLap)}</div>
-    <div class="summary-item"><strong>Average Lap:</strong> ${formatTime(averageLap)}</div>
-    ${winner ? `<div class="summary-item"><strong>Winner:</strong> ${winner.name}</div>` : ''}
-  `;
-
-  const maxLapTime = Math.max(...allLapTimes);
-  const ticks = [maxLapTime, maxLapTime * 0.75, maxLapTime * 0.5, maxLapTime * 0.25, 0];
-
-  summaryChart.innerHTML = `
-    <div class="chart-wrapper">
-      <div class="chart-y-axis">
-        ${ticks
-          .map((tick) => `<div class="chart-tick">${formatTime(Math.round(tick))}</div>`)
-          .join('')}
-      </div>
-      <div class="chart-grid">
-        ${chartRunners
-          .map((runner) => {
-            return `
-              <div class="runner-column">
-                <div class="runner-bars">
-                  ${runner.laps
-                    .map((lap) => {
-                      const height = maxLapTime > 0 ? Math.round((lap.lapTime / maxLapTime) * 100) : 0;
-                      return `
-                        <div class="lap-bar" style="height: ${height}%;">
-                          <span class="lap-number">L${lap.number}</span>
-                          <span class="lap-value">${formatTime(lap.lapTime)}</span>
-                        </div>
-                      `;
-                    })
-                    .join('')}
-                </div>
-                <div class="runner-name">${runner.name}</div>
-              </div>
-            `;
-          })
-          .join('')}
-      </div>
-    </div>
-  `;
 }
 
 function addMeet(name) {
@@ -898,6 +1271,18 @@ function recordLap(runnerId) {
     totalTime,
   });
 
+  const latestLap = runner.laps[runner.laps.length - 1];
+  appendResultRecord({
+    meetId: activeMeetId,
+    raceId: activeAssignment.raceId,
+    heatNumber: activeAssignment.heatNumber,
+    runnerId: runner.id,
+    runnerName: runner.name,
+    lapNumber: latestLap.number,
+    lapTime: latestLap.lapTime,
+    totalTime: latestLap.totalTime,
+  });
+
   renderRunnerButtons();
   renderResults();
 }
@@ -934,6 +1319,19 @@ function finishRunner(runnerId) {
       number: runner.laps.length + 1,
       lapTime,
       totalTime,
+    });
+
+    const latestLap = runner.laps[runner.laps.length - 1];
+    appendResultRecord({
+      meetId: activeMeetId,
+      raceId: activeAssignment.raceId,
+      heatNumber: activeAssignment.heatNumber,
+      runnerId: runner.id,
+      runnerName: runner.name,
+      lapNumber: latestLap.number,
+      lapTime: latestLap.lapTime,
+      totalTime: latestLap.totalTime,
+      isFinishLap: true,
     });
   }
 
@@ -1085,6 +1483,32 @@ tabButtons.forEach((button) => {
 
 meetSelect.addEventListener("change", function () {
   setActiveMeet(meetSelect.value);
+});
+
+resultsMeetFilter.addEventListener("change", function () {
+  resultsMeetFilterValue = resultsMeetFilter.value;
+  resultsRaceFilterValue = ALL_RACES_OPTION;
+  resultsHeatFilterValue = ALL_HEATS_OPTION;
+  renderResults();
+});
+
+resultsRaceFilter.addEventListener("change", function () {
+  resultsRaceFilterValue = resultsRaceFilter.value;
+  resultsHeatFilterValue = ALL_HEATS_OPTION;
+  renderResults();
+});
+
+resultsHeatFilter.addEventListener("change", function () {
+  resultsHeatFilterValue = resultsHeatFilter.value;
+  renderResults();
+});
+
+exportResultsButton.addEventListener("click", function () {
+  exportResultsScope();
+});
+
+clearResultsScopeButton.addEventListener("click", function () {
+  clearResultsScope();
 });
 
 runnerNameInput.addEventListener("keydown", function (event) {

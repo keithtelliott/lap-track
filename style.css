@@ -526,6 +526,92 @@ button {
   display: block;
 }
 
+.results-toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 14px;
+  align-items: end;
+}
+
+.results-filter {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+  color: #2b3645;
+}
+
+.results-filter select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  background: white;
+}
+
+.results-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+#exportResultsButton {
+  background: #0f766e;
+  color: white;
+}
+
+#clearResultsScopeButton {
+  background: #a33d2e;
+  color: white;
+}
+
+.results-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #e9effa;
+}
+
+.results-chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: white;
+  color: #263238;
+  font-size: 13px;
+}
+
+.results-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.results-race-group {
+  background: white;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.results-race-group h3 {
+  margin: 0 0 10px;
+  color: #1f2630;
+}
+
+.results-heat-group + .results-heat-group {
+  margin-top: 10px;
+}
+
+.results-heat-group h4 {
+  margin: 0 0 6px;
+  color: #374151;
+}
+
 .timer-grid {
   display: grid;
   gap: 14px;
@@ -657,6 +743,14 @@ button {
 @media (max-width: 840px) {
   .summary-container {
     grid-template-columns: 1fr;
+  }
+
+  .results-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .results-actions {
+    justify-content: flex-start;
   }
 
   .chart-wrapper {
