@@ -50,12 +50,8 @@ export function AppShell() {
       <header className="mb-8 rounded-2xl border border-border/80 bg-card/90 p-6 shadow-sm backdrop-blur">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Lap Track</p>
-            <h1 className="mt-2 text-3xl font-semibold text-card-foreground md:text-4xl">Migration Workspace</h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              This React + TypeScript shell is now the primary implementation target. Legacy behavior remains available
-              in the legacy folder for parity checks while features migrate.
-            </p>
+            <p className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">MooShu presents...</p>
+            <h1 className="mt-2 text-3xl font-semibold text-card-foreground md:text-4xl">Lap Track</h1>
           </div>
           <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
             Active meet: <span className="font-semibold text-foreground">{activeMeetName}</span>
